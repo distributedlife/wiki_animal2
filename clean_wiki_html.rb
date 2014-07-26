@@ -156,8 +156,11 @@ end
 
 animals.each do |animal|
 	puts animal
-	next if File.exists? "#{animal.downcase}.html" and !File.zero? "#{animal.downcase}.html"
-	File.open("#{animal.downcase}.html", "w") do |file| 
+	
+	filename = "#{official_name.gsub(' ', '_').downcase}.html"
+	
+	next if File.exists? filename and !File.zero? filename
+	File.open(filename, "w") do |file| 
 		file.write clean(get_wiki_content animal)
 	end
 end

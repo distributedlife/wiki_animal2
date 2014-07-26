@@ -70,6 +70,10 @@ def report xml, wikipage
 	genus = iterate_over xml, "//span[@class='genus']"
 	species = iterate_over xml, "//span[@class='species']"
 	subspecies = iterate_over xml, "//span[@class='subspecies']"
+
+	if species[0] == genus[0] && species[1] == "."
+		species.gsub!("#{genus[0]}.", genus)
+	end
 	
 	if iterate_over(xml, "//span[@class='trinomial']") == ""
 		official_name = iterate_over(xml, "//span[@class='binomial']")
@@ -93,7 +97,71 @@ def report xml, wikipage
 		activities << activity
 	end
 
-	record = {
+	if subspecies != ""
+		return nil if @animals.select{ |a| a[:subspecies] == subspecies }
+
+		species_record = @animals.select {|a| a[:species] == species && species != ""}
+		if species_record.empty?
+			return {
+				:common_name => common_name,
+				:conservation_status => conservation_status,
+				:kingdom => kingdom,
+				:phylum => phylum,
+				:klass => klass,
+				:order => order,
+				:family => family,
+				:genus => genus,
+				:species => species,
+				:subspecies => [{
+					:common_name => common_name,
+					:official_name => official_name,
+					:subspecies => subspecies, 
+					:old_filename => get_image_ref(xml),
+					:new_filename => "images/#{official_name.gsub(' ', '_').downcase}",
+					:countries => countries,
+					:colours => [],
+					:activities => activities,
+					:endemic => !xml.content.scan('endemic').empty?,
+					:wiki => wikipage
+					}],
+				:official_name => species,
+				:old_filename => get_image_ref(xml),
+				:new_filename => "images/#{official_name.gsub(' ', '_').downcase}",
+				:countries => countries,
+				:colours => [],
+				:activities => activities,
+				:endemic => !xml.content.scan('endemic').empty?,
+				:wiki => wikipage
+			}
+		else
+			species_record = species_record.first
+			species_record[:official_name] = official_name if species_record[:official_name] == ""
+			species_record[:old_filename] = get_image_ref(xml) if species_record[:old_filename] == ""
+			species_record[:new_filename] = get_image_ref(xml) if species_record[:new_filename] == "images/"
+			species_record[:countries] = (species_record[:countries] + countries).uniq
+			species_record[:colours] = (species_record[:colours] + []).uniq
+			species_record[:activities] = (species_record[:activities] + activities).uniq
+			species_record[:endemic] = !xml.content.scan('endemic').empty? unless species_record[:endemic] == true
+			species_record[:wiki] = wikipage if species_record[:wiki] == ""
+
+			species_record[:subspecies] << {
+				:common_name => common_name,
+				:official_name => official_name,
+				:subspecies => subspecies,
+				:old_filename => get_image_ref(xml),
+				:new_filename => "images/#{official_name.gsub(' ', '_').downcase}",
+				:countries => countries,
+				:colours => [],
+				:activities => activities,
+				:endemic => !xml.content.scan('endemic').empty?,
+				:wiki => wikipage
+			}
+
+			return nil
+		end
+	end
+
+	return {
 		:common_name => common_name,
 		:conservation_status => conservation_status,
 		:kingdom => kingdom,
@@ -103,8 +171,9 @@ def report xml, wikipage
 		:family => family,
 		:genus => genus,
 		:species => species,
-		:subspecies => subspecies,
+		:subspecies => [],
 		:official_name => official_name,
+		:wiki_filename => "#{official_name.gsub(' ', '_').downcase}.html"
 		:old_filename => get_image_ref(xml),
 		:new_filename => "images/#{official_name.gsub(' ', '_').downcase}",
 		:countries => countries,
@@ -113,8 +182,6 @@ def report xml, wikipage
 		:endemic => !xml.content.scan('endemic').empty?,
 		:wiki => wikipage
 	}
-
-	record
 end
  
 @animals = []
@@ -125,6 +192,7 @@ skipped = ['anhinga_novaehollandiae', 'Anhinga_rufa', 'Anhinga_melanogaster', 'A
 	puts animal
 	record = report(get_wiki_content(animal), animal) 
 
+	next if record.nil?
 	next if @animals.map {|a| a[:official_name]}.include? record[:official_name] and record[:official_name] != ""
 
 	@animals << record
@@ -134,5 +202,15 @@ File.open("animals.json", "w") do |file|
 	file.write "{\"animals\": #{@animals.to_json}}"
 end
 
-puts @animals.select {|a| a[:subspecies] == ""}.length
-puts @animals.select {|a| a[:subspecies] != ""}.length
+puts @animals.length
+
+puts "conservation_status: #{@animals.select{|a| a[:conservation_status] == "" }.length}"
+puts "kingdom: #{@animals.select{|a| a[:kingdom] == "" }.length}"
+puts "phylum: #{@animals.select{|a| a[:phylum] == "" }.length}"
+puts "klass: #{@animals.select{|a| a[:klass] == "" }.length}"
+puts "order: #{@animals.select{|a| a[:order] == "" }.length}"
+puts "family: #{@animals.select{|a| a[:family] == "" }.length}"
+puts "genus: #{@animals.select{|a| a[:genus] == "" }.length}"
+puts "species: #{@animals.select{|a| a[:species] == "" }.length}"
+puts "official_name: #{@animals.select{|a| a[:official_name] == "" }.length}"
+puts "old_filename: #{@animals.select{|a| a[:old_filename] == "" }.length}"
