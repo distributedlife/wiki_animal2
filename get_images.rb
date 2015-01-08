@@ -11,13 +11,20 @@ File.open(ARGV[0]) do |file|
 	@animals = JSON.parse(file.read)
 end
 
-@animals['animals'].each do |animal|
-	puts animal['common_name']
+@animals['animals'].each_with_index do |animal, index|
+	puts "#{animal['common_name']} #{index}/#{@animals['animals'].length}"
 
 	next if animal['old_filename'].empty?
 	next if File.exists? animal['new_filename']
 
-	data = eat("http:#{animal['old_filename']}")
+	data = nil
+
+	while data.nil?
+		begin
+			data = eat("http:#{animal['old_filename']}")
+		rescue
+		end
+	end
 
 	File.open(animal['new_filename'], "w") do |file|
 		file.write(data)
